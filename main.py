@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import time
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 def searchpeaks():
@@ -43,7 +44,7 @@ def searchpeaks():
     for i, peakdict in enumerate(sorted_peakdictlist[:num_peaks]):
         print(f"{i+1}番目にピークが高いファイル：{peakdict['filepath']}，ピーク値：{peakdict['peak']}")
 
-def pekaimaging():
+def peakimaging():
     print('データが保存されているフォルダのパスを入力してください：')
     folder_path = str(input())
     if (not os.path.exists(folder_path)) or (not os.path.isdir(folder_path)):
@@ -78,18 +79,61 @@ def pekaimaging():
     plt.colorbar()
     plt.show()
 
+def imaging():
+    print('データが保存されているフォルダのパスを入力してください：')
+    folder_path = str(input())
+    if (not os.path.exists(folder_path)) or (not os.path.isdir(folder_path)):
+        print("フォルダが存在しません。最初に戻ります!!\n")
+        return
+    folderdict = {}
+    for foldername in os.listdir(folder_path):
+        if not os.path.isdir(os.path.join(folder_path, foldername)):
+            continue
+        id = int(foldername.split('_')[0][3:])#_で分けて一番前 → さらに文字列posを飛ばす
+        folderdict[id] = foldername
+
+    folderdict = dict(sorted(folderdict.items(), key=lambda x: x[0]))
+
+    map = []
+    for id, foldername in folderdict.items():
+        for filename in os.listdir(os.path.join(folder_path, foldername)):
+            if filename == '.DS_Store' or filename == 'log.txt':
+                continue
+            filepath = os.path.join(folder_path, foldername, filename)
+            try:
+                df = pd.read_csv(filepath, sep='\t', comment='#', header=None)
+            except:
+                print(f"{filepath}はCSVファイルではありません。次のファイルを読み込みます")
+                continue
+            data = df[1].to_numpy()
+            map.append(data)
+            break
+    map = np.array(map)
+    map = map.T
+    fig = plt.figure(figsize=(10, 7), dpi=100)
+    ax = fig.add_subplot(1, 1, 1)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    c = ax.imshow(map, cmap='jet', aspect='auto')
+    plt.colorbar(c, cax=cax)
+    plt.show()
+
 if __name__ =='__main__':
     while True:
-        print('フォルダ内を探索してピーク値が高いファイルを表示する場合はsをピーク値でイメージングを行う場合はiを入力してください．')
+        print('フォルダ内を探索してピーク値が高いファイルを表示する場合はs\nピーク値でイメージングを行う場合はmax\n先頭ファイルでイメージングする場合はi\n終了するときはq\nを入力してください．')
         try:
             mode = str(input())
         except:
-            print('sまたはiを入力してください。')
+            print('s，max，iを入力してください。')
         else:
             if mode == 'i':
-                pekaimaging()
+                imaging()
             elif mode == 's':
                 searchpeaks()
+            elif mode == 'max':
+                peakimaging()
+            elif mode == 'q':
+                break
             else:
                 print('sまたはiを入力してください。')
         time.sleep(1)
