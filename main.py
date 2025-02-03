@@ -118,6 +118,69 @@ def imaging():
     plt.colorbar(c, cax=cax)
     plt.show()
 
+# reverse background imaging
+def bgimaging():
+    print("ihr320分光器の中心波長を入力してください")
+    try:
+        center_wl = float(input())
+    except:
+        print("数字を入力してください。最初に戻ります!!\n")
+        return
+    print("backgroundファイルのパスを入力してください")
+    try:
+        bg_path = str(input())
+        bg_df = pd.read_csv(bg_path, sep='\t', comment='#', header=None)
+    except:
+        print("backgroundファイルが存在しません。最初に戻ります!!\n")
+        return
+    print('データが保存されているフォルダのパスを入力してください：')
+    folder_path = str(input())
+    if (not os.path.exists(folder_path)) or (not os.path.isdir(folder_path)):
+        print("フォルダが存在しません。最初に戻ります!!\n")
+        return
+    folderdict = {}
+    for foldername in os.listdir(folder_path):
+        if not os.path.isdir(os.path.join(folder_path, foldername)):
+            continue
+        id = int(foldername.split('_')[0][3:])#_で分けて一番前 → さらに文字列posを飛ばす
+        folderdict[id] = foldername
+
+    folderdict = dict(sorted(folderdict.items(), key=lambda x: x[0]))
+
+    map = []
+    for id, foldername in folderdict.items():
+        for filename in os.listdir(os.path.join(folder_path, foldername)):
+            if filename == '.DS_Store' or filename == 'log.txt':
+                continue
+            filepath = os.path.join(folder_path, foldername, filename)
+            try:
+                df = pd.read_csv(filepath, sep='\t', comment='#', header=None)
+            except:
+                print(f"{filepath}はCSVファイルではありません。次のファイルを読み込みます")
+                continue
+            df[1] = df[1] - bg_df[1]
+            df_reverse = df.iloc[::-1]
+                    #x軸にラフな値を代入する処理
+            list_wl = []
+            # start_wl = center_wl - 319 #319は過去の結果からの概算結果
+            start_wl = center_wl - 246  #246は過去の結果からの概算結果
+            delta_wl = 509.5 / 511
+            for j in range(512):
+                list_wl.append(start_wl + delta_wl * j)
+            df_reverse[0] = list_wl
+            data = df_reverse[1].to_numpy()
+            map.append(data)
+            break
+    map = np.array(map)
+    map = map.T
+    fig = plt.figure(figsize=(10, 7), dpi=100)
+    ax = fig.add_subplot(1, 1, 1)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    c = ax.imshow(map, cmap='jet', aspect='auto')
+    plt.colorbar(c, cax=cax)
+    plt.show()
+
 if __name__ =='__main__':
     while True:
         print('フォルダ内を探索してピーク値が高いファイルを表示する場合はs\nピーク値でイメージングを行う場合はmax\n先頭ファイルでイメージングする場合はi\n終了するときはq\nを入力してください．')
@@ -128,6 +191,8 @@ if __name__ =='__main__':
         else:
             if mode == 'i':
                 imaging()
+            elif mode == 'bgi':
+                bgimaging()
             elif mode == 's':
                 searchpeaks()
             elif mode == 'max':
