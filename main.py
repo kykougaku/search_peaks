@@ -249,6 +249,7 @@ def lenimaging():
     map = np.array(map)
     Z = map.T
 
+    plt.rcParams["font.size"] = 20
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, aspect='equal')
     contour = ax.pcolormesh(X, Y, Z, cmap='jet', shading='nearest', norm=Normalize(vmin=0, vmax=1300))
@@ -268,7 +269,7 @@ def sortbylength(strlist: list) -> list:
 
 if __name__ =='__main__':
     while True:
-        print('フォルダ内を探索してピーク値が高いファイルを表示する場合は「s」\nピーク値でイメージングを行う場合は「max」\n先頭ファイルでイメージングする場合は「i」\nバックグラウンドを引いてイメージングをする場合は「bgi」を\nフォルダ内におけるファイル名の長さの順番を指定してイメージングする時は「leni」を終了するときはq\nを入力してください．')
+        print('フォルダ内を探索してピーク値が高いファイルを表示する場合は「s」\nピーク値でイメージングを行う場合は「max」\n先頭ファイルでイメージングする場合は「i」\nバックグラウンドを引いてイメージングをする場合は「bgi」を\nフォルダ内におけるファイル名の長さの順番を指定してイメージングする時は「leni」を\n終了するときはqを入力してください．')
         try:
             mode = str(input())
         except:
