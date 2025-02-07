@@ -4,6 +4,8 @@ import time
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from matplotlib.colors import Normalize
+import re
 
 def searchpeaks():
     print('データが保存されているフォルダのパスを入力してください：')
@@ -181,13 +183,96 @@ def bgimaging():
     plt.colorbar(c, cax=cax)
     plt.show()
 
+def lenimaging():
+    print('データが保存されているフォルダのパスを入力してください：')
+    folder_path = str(input())
+    if (not os.path.exists(folder_path)) or (not os.path.isdir(folder_path)):
+        print("フォルダが存在しません。最初に戻ります!!\n")
+        return
+    folderdict = {}
+    for foldername in os.listdir(folder_path):
+        if not os.path.isdir(os.path.join(folder_path, foldername)):
+            continue
+        id = int(foldername.split('_')[0][3:])#_で分けて一番前 → さらに文字列posを飛ばす
+        folderdict[id] = foldername
+
+    folderdict = dict(sorted(folderdict.items(), key=lambda x: x[0]))
+
+    print('当該フォルダには以下のようにファイルが格納されています。')
+    for id, foldername in folderdict.items():
+        ex_ind = 1
+        for fn in os.listdir(os.path.join(folder_path, foldername)):
+            if fn == '.DS_Store' or fn == 'log.txt':
+                continue
+            print(f'{ex_ind}番目: {fn}')
+            ex_ind += 1
+        break
+    print('何番目のファイルをイメージングに使用しますか？')
+    ind = int(input())
+
+    #フォルダ名から測定地点の順番と座標を取得
+    xlist = []
+    for id, foldername in folderdict.items():
+        listfoldername = foldername.split('_')
+        pos_ind = int(re.sub(r'pos', '', listfoldername[0]))
+        if pos_ind == 0:
+            gx = int(re.sub(r'x', '', listfoldername[1]))
+            gy = int(re.sub(r'y', '', listfoldername[2]))
+            break
+
+    map = []
+    for id, foldername in folderdict.items():
+        fnlist = []
+        for fn in os.listdir(os.path.join(folder_path, foldername)):
+            if fn == '.DS_Store' or fn == 'log.txt':#macの不要ファイルや測定のログファイルを除外
+                continue
+            fnlist.append(fn)
+        fnlist = sortbylength(fnlist)
+        filename = fnlist[ind-1]
+        filepath = os.path.join(folder_path, foldername, filename)
+        try:
+            df = pd.read_csv(filepath, comment='#', header=None)
+        except:
+            print(f"{filepath}はCSVファイルではありません。次のファイルを読み込みます")
+            continue
+        data = df[1].to_numpy()
+        map.append(data)
+
+        listfoldername = foldername.split('_')
+        x = int(re.sub(r'x', '', listfoldername[1]))
+        y = int(re.sub(r'y', '', listfoldername[2]))
+        xlist.append(np.linalg.norm(np.array([x-gx, y-gy])) / 100) #現段階ではpriorの内部単位をフォルダ名に用いている．100[internal unit] = 1[um]
+    #x = np.arange(len(map))
+    x = np.array(xlist)
+    y = df[0].to_numpy()
+    X, Y = np.meshgrid(x, y)
+    map = np.array(map)
+    Z = map.T
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, aspect='equal')
+    contour = ax.pcolormesh(X, Y, Z, cmap='jet', shading='nearest', norm=Normalize(vmin=0, vmax=1300))
+
+    # カラーバー調整用
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.1)
+    pp = fig.colorbar(contour, cax=cax, orientation='vertical')
+
+    ax.set_xlabel('distance from start point [$\mu$m]')
+    ax.set_ylabel('Emission Wavelength [nm]')
+    #ax.grid()
+    plt.show()
+
+def sortbylength(strlist: list) -> list:
+    return sorted(strlist, key=len)
+
 if __name__ =='__main__':
     while True:
-        print('フォルダ内を探索してピーク値が高いファイルを表示する場合はs\nピーク値でイメージングを行う場合はmax\n先頭ファイルでイメージングする場合はi\n終了するときはq\nを入力してください．')
+        print('フォルダ内を探索してピーク値が高いファイルを表示する場合は「s」\nピーク値でイメージングを行う場合は「max」\n先頭ファイルでイメージングする場合は「i」\nバックグラウンドを引いてイメージングをする場合は「bgi」を\nフォルダ内におけるファイル名の長さの順番を指定してイメージングする時は「leni」を終了するときはq\nを入力してください．')
         try:
             mode = str(input())
         except:
-            print('s，max，iを入力してください。')
+            print('s，max，i, bgiを入力してください。')
         else:
             if mode == 'i':
                 imaging()
@@ -197,6 +282,8 @@ if __name__ =='__main__':
                 searchpeaks()
             elif mode == 'max':
                 peakimaging()
+            elif mode == 'leni':
+                lenimaging()
             elif mode == 'q':
                 break
             else:
